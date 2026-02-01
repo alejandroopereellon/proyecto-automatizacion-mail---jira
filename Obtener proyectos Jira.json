@@ -1,0 +1,147 @@
+{
+  "name": "Obtener proyectos Jira",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -416,
+        -64
+      ],
+      "id": "58512f32-47d3-4fe6-8257-04f08dc84bc8",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b4f37d06-f363-4f8f-8bb5-e36580586a1d",
+              "name": "ulr_atlassian",
+              "value": "https://TU_DOMINIO.atlassian.net/",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -208,
+        -64
+      ],
+      "id": "d3bd2aec-ab55-472b-b3d3-0dd3ae156a51",
+      "name": "almacenar url atlassian"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.ulr_atlassian }}rest/api/3/project ",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "jiraSoftwareCloudApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        16,
+        -64
+      ],
+      "id": "17fa081f-cff1-49a6-b3db-abff13ccffba",
+      "name": "Peticion get obtener id proyectos",
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "e3wZ5dya4O3eTFFq",
+          "name": "Jira SW Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Obener ID proyecto\nEste trigger permite obtener todos los ID de los proyectos para poder añadir en la base de datos el elemento.\n\nDebes cambiar la url del nodo \"almacenar url atlassian\"",
+        "height": 288,
+        "width": 896,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -464,
+        -176
+      ],
+      "typeVersion": 1,
+      "id": "5257dddf-0346-4ae7-86ca-cd567d574c9b",
+      "name": "Sticky Note10"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "include": "specifiedFields",
+        "fieldsToInclude": "id, name, key",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        224,
+        -64
+      ],
+      "id": "2c0c6326-d62e-4539-a65c-0f9e352f50a2",
+      "name": "Aggregate"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "almacenar url atlassian",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "almacenar url atlassian": {
+      "main": [
+        [
+          {
+            "node": "Peticion get obtener id proyectos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Peticion get obtener id proyectos": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "77a08ad2-3e6f-4d55-b44e-2e38ce3aa1fe",
+  "meta": {
+    "instanceId": "9d2e4f5e83105562581e5f21f9ce66b9d86cbb2db24c567aed3091d70ab08f35"
+  },
+  "id": "KI3D9k4uEVPHr6LC5DIyc",
+  "tags": [
+    {
+      "name": "atlassian",
+      "id": "LHwCWpCPTw8v9MYg",
+      "updatedAt": "2026-02-01T19:39:22.454Z",
+      "createdAt": "2026-02-01T19:39:22.454Z"
+    }
+  ]
+}

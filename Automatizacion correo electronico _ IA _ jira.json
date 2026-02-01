@@ -1,0 +1,1061 @@
+{
+  "name": "Automatizacion correo electronico / IA / jira",
+  "nodes": [
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Email del remitente (string)\nconst email = $('Recibir correo').item.json.from.value[0].address;\n\n// Si no hay email, devolvemos null\nif (!email) {\n  return { json: { dominio: null } };\n}\n\n// Cortamos todo lo que va después del \"@\"\nconst dominio = email.split(\"@\")[1] ?? null;\n\n// Devolvemos solo el dominio\nreturn {\n  json: { dominio }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        192
+      ],
+      "id": "7cbc4ef4-2e59-4397-82ef-a754ae2eb668",
+      "name": "Obtener dominio correo"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1abe7b45-f776-4229-a133-f38fac530cf2",
+              "name": "fecha",
+              "value": "={{ $('Recibir correo').item.json.date }}",
+              "type": "string"
+            },
+            {
+              "id": "7e8e4897-b703-423a-8d40-5e1c93be3de8",
+              "name": "para",
+              "value": "={{ $('Recibir correo').item.json.to.value }}",
+              "type": "array"
+            },
+            {
+              "id": "1700fbfc-5f4c-4f70-82a7-aa39dd374de2",
+              "name": "de",
+              "value": "={{ $('Recibir correo').item.json.from.value }}",
+              "type": "array"
+            },
+            {
+              "id": "e4f99a02-89b6-4b99-a23b-3ed2c4acc138",
+              "name": "dominio",
+              "value": "={{ $('Obtener dominio correo').item.json.dominio }}",
+              "type": "string"
+            },
+            {
+              "id": "8e775c2b-3226-4b4f-9759-dcf8af0aba8a",
+              "name": "asunto",
+              "value": "={{ $('Recibir correo').item.json.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "c44e37e4-2e4b-4247-839b-66ae61b6af4b",
+              "name": "cuerpo",
+              "value": "={{ $('Recibir correo').item.json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "b33b3988-efa1-4bfa-9001-fbe938bb4e1e",
+              "name": "clave_proyecto_jira",
+              "value": "={{ $json.jira_project_key }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        160,
+        192
+      ],
+      "id": "bc95e061-8c01-4236-8b59-b9bd4d2c39a6",
+      "name": "Normalizar datos correo"
+    },
+    {
+      "parameters": {
+        "project": {
+          "__rl": true,
+          "value": "={{ $('Normalizar datos correo').item.json.clave_proyecto_jira }}",
+          "mode": "id"
+        },
+        "issueType": {
+          "__rl": true,
+          "value": "10003",
+          "mode": "list",
+          "cachedResultName": "Tarea"
+        },
+        "summary": "={{ $json.output.summary }}",
+        "additionalFields": {
+          "description": "=Evento creado el : {{ new Date($now)\n  .toLocaleString('es-ES', {\n    day: '2-digit',\n    month: '2-digit',\n    year: 'numeric',\n    hour: '2-digit',\n    minute: '2-digit'\n  })\n  .replace(',', '')\n}}\n\n\n\n--- Resumen de la incidencia (IA) ---\n\n{{ $json.output.description }}\n\n\n--- Correo original ---\nEl usuario {{ $('Normalizar datos correo').item.json.de }} informa de lo siguiente:\nAsunto: {{ $('Normalizar datos correo').item.json.asunto }}\nCuerpo: {{ $('Normalizar datos correo').item.json.cuerpo }}",
+          "updateHistory": true
+        }
+      },
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        2016,
+        400
+      ],
+      "id": "c189665e-5e61-4319-9299-03151627e087",
+      "name": "Crear una incidencia",
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "e3wZ5dya4O3eTFFq",
+          "name": "Jira SW Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"summary\": \"\",\n  \"description\": \"\",\n  \"is_incident\": false,\n  \"is_forwarded\": false,\n  \"is_response\": false\n}\n\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        656,
+        400
+      ],
+      "id": "acbfa0f6-57bd-490e-88f3-342b49fa094e",
+      "name": "estructura salida",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-3.5-turbo",
+          "mode": "list",
+          "cachedResultName": "gpt-3.5-turbo"
+        },
+        "responsesApiEnabled": false,
+        "options": {
+          "maxRetries": 2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        512,
+        400
+      ],
+      "id": "05086eaf-464b-41a1-b009-db8b2b910fcf",
+      "name": "OpenAI Chat Model",
+      "retryOnFail": true,
+      "executeOnce": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "Li2KWs8HCfUjpUSK",
+          "name": "OpenAi - alejandro"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "81e1fc71-372a-4d9b-ab6d-d84e6080ac7b",
+              "leftValue": "={{ $('Normalizar datos correo').item.json.clave_proyecto_jira }}",
+              "rightValue": "reply",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1024,
+        192
+      ],
+      "id": "4eae3591-3b49-40de-a4cd-873c849298c3",
+      "name": "Si el dominio esta en bbdd"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={\n  \"fecha\": \"{{ $json.fecha }}\",\n  \"para\": \"{{ $json.para }}\",\n  \"de\": \"{{ $json.de }}\",\n  \"dominio\": \"{{ $json.dominio }}\",\n  \"asunto\": \"{{ $json.asunto }}\",\n  \"cuerpo\": \"{{ $json.cuerpo }}\"\n}\n",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=Eres un asistente de clasificación de correos para soporte técnico interno.\n\nRecibirás un JSON con datos de un correo electrónico (date, from, to, subject, body).\nTu tarea es:\n\nDetectar si el correo describe una incidencia técnica que requiere intervención.\n\nResumirlo para uso interno.\n\nDevolver ÚNICAMENTE un JSON válido con el esquema indicado.\n\nREGLAS OBLIGATORIAS\n\nDevuelve ÚNICAMENTE JSON válido. Sin texto fuera del JSON.\n\nNo uses markdown ni bloques de código.\n\nNo inventes datos técnicos no presentes en el correo.\n\nNo menciones Jira ni herramientas internas.\n\nNo decidas proyecto, tablero, estado, prioridad ni tipo de ticket.\n\nTono profesional y neutral.\n\nDEFINICIONES\n\nIncidencia (is_incident=true) SOLO si hay un fallo, degradación del servicio, petición de ayuda técnica o bloqueo operativo que requiera diagnóstico o acción.\n\nNo incidencia (is_incident=false) si es informativo, automático, marketing, facturación, newsletters, confirmaciones, avisos sin petición de acción, o temas no técnicos.\n\nDETECCIÓN DE REENVÍO / RESPUESTA\n\nis_forwarded=true si el asunto o cuerpo contiene patrones típicos de reenvío (p. ej. \"FW:\", \"Fwd:\", \"Reenviado\", \"Forwarded message\", cabeceras pegadas).\n\nis_response=true si el asunto o cuerpo indica respuesta (p. ej. \"RE:\", \"Re:\", \"Respuesta:\", \"In-Reply-To:\", \"On <date> wrote:\").\n\nSi no es claro, marca ambos como false.\n\nCAMPOS DE SALIDA (siempre los 5)\n\nsummary: string\n\ndescription: string\n\nis_incident: boolean\n\nis_forwarded: boolean\n\nis_response: boolean\n\nFORMATO DE summary y description\n\nSi is_incident=true:\n\nsummary: título corto y claro (8–10 palabras máximo) con el problema principal.\n\ndescription: empieza SIEMPRE con:\n\"El usuario (EMAIL_DEL_REMITENTE) informa de lo siguiente:\"\nLuego incluye en párrafos cortos:\n\nQué ocurre (síntoma)\n\nDesde cuándo (si aparece)\n\nQué ha intentado (si aparece)\n\nImpacto (qué no puede hacer)\nSi faltan datos para actuar, añade al final:\n\"Notas para el técnico:\"\n\nLista de bullets con datos a recopilar o comprobaciones internas (no preguntas al usuario).\n\nSi is_incident=false:\n\nsummary: tipo de mensaje (ej. \"Notificación automática de seguridad\").\n\ndescription: por qué no es incidencia y acción recomendada (si aplica) en una frase.\n\nESQUEMA DE SALIDA EXACTO (no añadas campos extra)\n{\n\"summary\": \"\",\n\"description\": \"\",\n\"is_incident\": false,\n\"is_forwarded\": false,\n\"is_response\": false\n}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        512,
+        192
+      ],
+      "id": "67076a0e-80ac-4113-8244-c5ff74a38221",
+      "name": "resumen incidencia",
+      "alwaysOutputData": true,
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $('correos restriccion').item.json['email_no-reply'] }}",
+        "toEmail": "={{ $('correos restriccion').item.json.email_buzon }}",
+        "subject": "=n8n: Se ha creado la incidencia: {{ $('resumen incidencia').item.json.output.summary }}",
+        "html": "=Se ha creado una nueva incidencia en Jira de forma automática.\n\n--------------------------------\nDatos de la incidencia\n--------------------------------\nFecha de creación: {{ new Date($now)\n  .toLocaleString('es-ES', {\n    day: '2-digit',\n    month: '2-digit',\n    year: 'numeric',\n    hour: '2-digit',\n    minute: '2-digit'\n  })\n  .replace(',', '')\n}}\n\nID Jira: {{ $('Normalizar datos correo').item.json.clave_proyecto_jira }}\nClave tarjeta: {{ $json.key }}\nTipo: Tarea\n\n--------------------------------\nResumen de la incidencia (IA)\n--------------------------------\n{{ $('resumen incidencia').item.json.output.description }}\n\n--------------------------------\nCorreo original\n--------------------------------\nRemitente: {{ $('Normalizar datos correo').item.json.de }}\nAsunto: {{ $('Normalizar datos correo').item.json.asunto }}\n\n{{ $('Normalizar datos correo').item.json.cuerpo }}\n",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2208,
+        400
+      ],
+      "id": "0bce7f48-1afe-45a7-a3c6-a62ee91c2596",
+      "name": "Notificamos automatizacion",
+      "webhookId": "a6667672-1e4f-4d0e-b55a-e1edc6701b8d",
+      "credentials": {
+        "smtp": {
+          "id": "aps93qlVMkMeAz7R",
+          "name": "SMTP - no-reply@dominio.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Normalizacion de datos\nObtenemos toda la informacion del correo, el dominio de correo y del panel de jira al que se van a anadir las incidencias y normalizamos los datos de interes\n",
+        "height": 80,
+        "width": 1456
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1104,
+        -64
+      ],
+      "typeVersion": 1,
+      "id": "7dce035c-82af-44d2-a646-9651678fb621",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## 1. Filtramos los correos \nProcesamos solo los que tienen de destinatario el buzon de correo principal (Se ignoran los correos en CC) y no se ha enviado por el correo de no-reply de la empresa\n\n**Se debe personalizar el nodo correos restriccion**\n",
+        "height": 336,
+        "width": 544
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1104,
+        32
+      ],
+      "typeVersion": 1,
+      "id": "d6fae049-d4ee-4b37-a031-261c80eb92f0",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## 2. Obtencion del dominio de correo \nMediante codigo JavaScript obtenemos el dominio de correo electronico para su posterior procesamiento",
+        "height": 336,
+        "width": 288
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -544,
+        32
+      ],
+      "typeVersion": 1,
+      "id": "b93587d2-b343-4268-875c-4011ac4235e3",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "## 3. Recuperar el tablon de Jira\nObtenemos a traves del dominio de correo el tablon de incidencias para Jira desde la BBDD",
+        "height": 336,
+        "width": 288
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -240,
+        32
+      ],
+      "typeVersion": 1,
+      "id": "473eb26b-d44d-44c7-b56e-499fbe14d24a",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "jira_destino",
+          "mode": "list",
+          "cachedResultName": "jira_destino"
+        },
+        "limit": 1,
+        "where": {
+          "values": [
+            {
+              "column": "dominio",
+              "value": "={{ $json.dominio }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -144,
+        192
+      ],
+      "id": "9d29c7a9-f606-46d2-ad54-502b302c0986",
+      "name": "Obtener tablero por dominio",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "kvG9E6Af1c8QVtKC",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## 4. Normalizacion de datos\nCon todos los datos obtenidos obtenemos los valores que nos interesan",
+        "height": 336,
+        "width": 288
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        64,
+        32
+      ],
+      "typeVersion": 1,
+      "id": "ba2459eb-6514-43cd-9dd6-99f2d2036759",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "## Comprobar si el dominio esta en BBDD\nComprobamos si el dominio esta en la base de datos, en caso de no existir se va a enviar un correo con un formulario para añadir el dominio a un tablero",
+        "height": 464,
+        "width": 672,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        944,
+        32
+      ],
+      "typeVersion": 1,
+      "id": "9a79f820-5315-47ef-bd15-557864b1a87b",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "jira_destino",
+          "mode": "list",
+          "cachedResultName": "jira_destino"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "dominio": "={{ $('Normalizar datos correo').item.json.dominio }}",
+            "jira_project_key": "={{ $json.data['ID tablero'] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "dominio",
+              "displayName": "dominio",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "jira_project_key",
+              "displayName": "jira_project_key",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1440,
+        320
+      ],
+      "id": "322cf935-db16-4f07-bc83-64e0a243b5b9",
+      "name": "Insertar domino en BBDD",
+      "credentials": {
+        "postgres": {
+          "id": "kvG9E6Af1c8QVtKC",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Inteligencia artificial \n**Este agente de IA analiza correos electrónicos entrantes para soporte técnico interno.**\n\nClasifica si el mensaje corresponde a una incidencia que requiere intervención, genera un resumen y una descripción estructurada, y detecta si el correo es un reenvío o una respuesta.\n\nNo crea incidencias, no asigna prioridades ni toma decisiones operativas: únicamente normaliza y estructura la información para su tratamiento posterior.",
+        "height": 608,
+        "width": 480,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        384,
+        -64
+      ],
+      "typeVersion": 1,
+      "id": "2114d2ff-4c9c-423f-b23f-2a4d611f7908",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('resumen incidencia').item.json.output }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "object",
+                      "operation": "empty",
+                      "singleValue": true
+                    },
+                    "id": "1fa7f413-46c9-48b8-9c60-600c49de476b"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Output IA vacio"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "7b707114-0376-440c-b643-9e71bc0892d8",
+                    "leftValue": "={{ $json.output.is_response }}",
+                    "rightValue": false,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "es una respuesta"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "5f960855-2983-4f78-90bb-552777ae00a3",
+                    "leftValue": "={{ $json.output.is_incident }}",
+                    "rightValue": false,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Es una incidencia"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1744,
+        160
+      ],
+      "id": "0a3320d9-27ea-46bf-b548-e6bf4e836766",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "fromEmail": "={{ $('correos restriccion').item.json['email_no-reply'] }}",
+        "toEmail": "={{ $('correos restriccion').item.json.email_buzon }}",
+        "subject": "Respuesta recibida: indica el ID de la incidencia",
+        "message": "=Hola,\n\nEl sistema ha clasificado este mensaje como respuesta a una incidencia existente, pero no se ha encontrado un identificador válido de incidencia en el correo.\n\nPara continuar con el seguimiento, responde indicando el ID de la incidencia a la que debe asociarse (formato: KAN-123).\n\nEl contenido del correo original se añadirá como comentario interno en la incidencia indicada.\n\nSi no corresponde a ninguna incidencia, no es necesario realizar ninguna acción.\n\nDatos del mensaje recibido\n\nFecha: {{ $('Normalizar datos correo').item.json.fecha }}\nDe: {{ $('Normalizar datos correo').item.json.de }}\nPara: {{ $('Normalizar datos correo').item.json.para }}\nAsunto: {{ $('Normalizar datos correo').item.json.asunto }}\n\nMensaje:\n{{ $('Normalizar datos correo').item.json.cuerpo }}\n",
+        "responseType": "customForm",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "ID incidencia",
+              "placeholder": "KAN-123"
+            }
+          ]
+        },
+        "options": {
+          "messageButtonLabel": "Indicar ID",
+          "responseFormDescription": "Indica el ID de la tarjeta de incidencia",
+          "responseFormButtonLabel": "Enviar ID",
+          "limitWaitTime": {
+            "values": {
+              "resumeAmount": 30,
+              "resumeUnit": "minutes"
+            }
+          },
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2048,
+        80
+      ],
+      "id": "bac48abe-4b5e-4dc0-972f-b938c5277962",
+      "name": "Enviar correo pidiendo ID incidencia",
+      "webhookId": "5fe52a71-7042-47f5-90f8-513972e645e3",
+      "alwaysOutputData": false,
+      "credentials": {
+        "smtp": {
+          "id": "aps93qlVMkMeAz7R",
+          "name": "SMTP - no-reply@dominio.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "fromEmail": "={{ $('correos restriccion').item.json['email_no-reply'] }}",
+        "toEmail": "={{ $('correos restriccion').item.json.email_buzon }}",
+        "subject": "No se ha podido realizar una automatizacion",
+        "message": "Se ha detectado que el dominio actual no esta metido en la base de datos, por favor necesitamos informacion sobre el ID del tablero de Jira al que conectar la incidencia",
+        "responseType": "customForm",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "=ID tablero",
+              "placeholder": "10000",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "messageButtonLabel": "Notificar ID",
+          "responseFormDescription": "=El dominio  {{ $json.dominio }} no esta en la base de datos, por favor añade el ID del tablon para añadirlo a la base de datos",
+          "responseFormButtonLabel": "Añadir a la BBDD",
+          "limitWaitTime": {
+            "values": {
+              "resumeAmount": 30,
+              "resumeUnit": "minutes"
+            }
+          },
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1200,
+        320
+      ],
+      "id": "dda67aac-773c-4d5d-ab26-2e3d976cb1a2",
+      "name": "Enviar correo pidiendo ID tablero",
+      "webhookId": "7c4f95d2-0961-43d8-bcac-1fabba563252",
+      "credentials": {
+        "smtp": {
+          "id": "aps93qlVMkMeAz7R",
+          "name": "SMTP - no-reply@dominio.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Creamos una incidencia \nCuando el correo electronico no es una respuesta, se creará una nueva tarjeta con la incidencia en el tablero",
+        "height": 288,
+        "width": 400,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1952,
+        288
+      ],
+      "typeVersion": 1,
+      "id": "c6c76743-1377-4aad-a914-0b950af03648",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.data['ID incidencia'];\n\nif (!raw) {\n  return [\n    {\n      json: {\n        jiraIssueId: null\n      }\n    }\n  ];\n}\n\nconst match = raw.match(/\\b([a-zA-Z]{2,10})[\\s\\-_]?(\\d+)\\b/);\n\nif (!match) {\n  return [\n    {\n      json: {\n        jiraIssueId: null\n      }\n    }\n  ];\n}\n\nconst project = match[1].toUpperCase();\nconst number = match[2];\n\nreturn [\n  {\n    json: {\n      jiraIssueId: `${project}-${number}`\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2256,
+        80
+      ],
+      "id": "811a305d-7be5-4a90-88f9-63c2ab150731",
+      "name": "Normalizar ID incidencia"
+    },
+    {
+      "parameters": {
+        "resource": "issueComment",
+        "issueKey": "={{ $json.jiraIssueId }}",
+        "comment": "=Comentario generado el: {{ new Date($now)\n  .toLocaleString('es-ES', {\n    day: '2-digit',\n    month: '2-digit',\n    year: 'numeric',\n    hour: '2-digit',\n    minute: '2-digit'\n  })\n  .replace(',', '')\n}}\n\nIncidencia vinculada: {{ $json.jiraIssueId }}\n\n\n\n--- Resumen de la respuesta (IA) ---\n\n{{ $('resumen incidencia').item.json.output.description }}\n\n\n\n--- Correo original (respuesta) ---\nRemitente: {{ $('Normalizar datos correo').item.json.de }}\nAsunto: {{ $('Normalizar datos correo').item.json.asunto }}\nCuerpo:\n{{ $('Normalizar datos correo').item.json.cuerpo }}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        2480,
+        80
+      ],
+      "id": "1ab74de1-bff3-40f5-927c-db49e7237e89",
+      "name": "Creamos el comentario",
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "e3wZ5dya4O3eTFFq",
+          "name": "Jira SW Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Creamos una comentario sobre la respuesta\nCuando el mensaje entrante es identificado como una respuesta a una incidencia, el sistema envía un correo interno solicitando el ID de la incidencia correspondiente.\nUna vez proporcionado y normalizado el ID, la información relevante extraída por la IA se añade como comentario en la incidencia asociada.",
+        "height": 336,
+        "width": 736,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1952,
+        -80
+      ],
+      "typeVersion": 1,
+      "id": "eb577a6f-460e-4cc1-958f-c0d9ba884fb3",
+      "name": "Sticky Note9"
+    },
+    {
+      "parameters": {
+        "content": "## Objetivo y configuración rápida\n\n### Objetivo\n\nEste workflow de **n8n** automatiza la gestión de incidencias recibidas por correo:\n\n- Lee emails entrantes desde un buzón de soporte (IMAP).\n- Filtra correos para procesar solo los que:\n  - tienen como destinatario principal el buzón objetivo (To),\n  - y no provienen de una cuenta no-reply.\n- Usa IA para clasificar el correo (incidencia / respuesta / reenvío) y generar un resumen estructurado.\n- Si es incidencia: crea automáticamente un ticket en Jira.\n- Si es respuesta sin ID: solicita al técnico el ID y añade el contenido como comentario en Jira.\n\n---\n\n### Flujo resumido\n\n1. Recibir correo (IMAP)\n2. Filtrado de destinatario y remitente\n3. Extracción del dominio del remitente\n4. Consulta en base de datos (dominio → proyecto Jira)\n5. Clasificación y resumen con IA\n6. Acción final:\n   - Crear incidencia\n   - Añadir comentario\n   - Solicitar información adicional\n\n---\n\n### Credenciales necesarias\n\n- Buzón de correo electrónico (IMAP)\n- Envío de correo (SMTP)\n- Conexión a base de datos Postgres\n- OpenAI API\n- Credenciales de Jira\n\n---\n\n### Qué debes cambiar para ejecutarlo en otro sistema\n\n#### Buzón y filtros\n- Nodo **Recibir correo**: credenciales del buzón de entrada.\n- Nodo **correos restriccion**:\n  - `email_buzon`: correo que debe estar en TO.\n  - `email_no-reply`: correo automático a excluir.\n\n#### Base de datos (Postgres)\n\nTabla de mapeo dominio → proyecto Jira:\n\n```sql\nCREATE TABLE jira_destino (\n  dominio TEXT PRIMARY KEY,\n  jira_project_key TEXT NOT NULL\n);\n```\n\nEjemplo:\n\n```sql\nINSERT INTO jira_destino (dominio, jira_project_key)\nVALUES ('dominio.com', 'KAN');\n```\n\n#### Jira\n- Configurar credenciales.\n- Definir proyecto, tipo de incidencia y campos obligatorios.\n\n**Obtención del proyecto Jira**\nPara identificar el proyecto de Jira se realiza una petición HTTP GET a la API de Jira:\nGET /rest/api/3/project\n\nEsta llamada devuelve la lista de proyectos accesibles, incluyendo su ID interno y la clave del proyecto (Project Key).\nCon la Project Key es suficiente para poder crear incidencias automáticamente.\n\n#### OpenAI\n- Configurar credenciales y modelo en el nodo OpenAI Chat Model.\n\n---\n\n### Qué NO hace este workflow\n\n- No calcula prioridades, SLA ni asignaciones automáticas.\n- No gestiona adjuntos.\n- No evita duplicados automáticamente.\n\n---\n\n### Autor\n\nProyecto desarrollado por **Alejandro Perellón**\n\nLinkedIn: https://www.linkedin.com/in/alejandro-perellón-lópez-180746278  \nWeb: https://alejandroperellon.es\n",
+        "height": 2000,
+        "width": 704,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2048,
+        -64
+      ],
+      "typeVersion": 1,
+      "id": "b392a458-8123-49d9-89f8-4ee179dfbbd3",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "postProcessAction": "nothing",
+        "format": "resolved",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2.1,
+      "position": [
+        -1264,
+        192
+      ],
+      "id": "7463249c-43cd-4550-b0e8-f7ba4d288556",
+      "name": "Recibir correo",
+      "credentials": {
+        "imap": {
+          "id": "ckMAW5328OodXLiz",
+          "name": "IMAP - apl@dominio.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5bd38e26-bc2b-4471-ada3-b00375b355b4",
+              "leftValue": "={{ $json.estaEnTo }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "9c553c72-f53d-45f7-95c4-3573b40c8a10",
+              "leftValue": "={{ $json.esNoReply }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": "=",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        -704,
+        192
+      ],
+      "id": "89238ea8-19e8-40bc-820b-1cec7b6ad248",
+      "name": "Filtrado de correo"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f6687887-070f-477e-9b13-8299a538048d",
+              "name": "email_buzon",
+              "value": "apl@dominio.com",
+              "type": "string"
+            },
+            {
+              "id": "2073e6b7-77eb-4085-b4a3-5b4e4b5662ac",
+              "name": "email_no-reply",
+              "value": "no-reply@dominio.com",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1056,
+        192
+      ],
+      "id": "3477f8d3-ba4a-4811-91c6-a6155ec54ec5",
+      "name": "correos restriccion"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1) LEER LOS CORREOS DE CONTROL\n\n// Este nodo tiene los correos que tú defines\nconst restricciones = $('correos restriccion').item.json;\n\n// El correo de TU buzón (el que debe estar en TO)\nconst miBuzon = restricciones.email_buzon.toLowerCase();\n\n// El correo que NO queremos como remitente\nconst correoNoReply = restricciones['email_no-reply'].toLowerCase();\n\n\n// 2) LEER EL CORREO RECIBIDO\n\n// Aquí leemos el correo real que llega\nconst correo = $('Recibir correo').item.json;\n\n\n// 3) COMPROBAR SI ESTÁ EN TO\n\n// \"to.value\" es una lista de destinatarios\n// Recorremos esa lista y miramos si alguno es mi buzón\nconst estaEnTo = (correo.to.value ?? []).some(destinatario => {\n  return destinatario.address.toLowerCase() === miBuzon;\n});\n\n\n// 4) COMPROBAR SI ES NO-REPLY\n\n// \"from.value\" suele tener un solo remitente\n// Miramos si ese remitente es el correo no-reply\nconst esNoReply = (correo.from.value ?? []).some(remitente => {\n  return remitente.address.toLowerCase() === correoNoReply;\n});\n\n\n// 5) DEVOLVER RESULTADOS\n\n// Devolvemos SOLO lo necesario\nreturn {\n  json: {\n    estaEnTo,\n    esNoReply\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        192
+      ],
+      "id": "956a6848-ea2d-41fa-a968-93f509c665bb",
+      "name": "comprobar correo destinatario y remitente"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Obtener dominio correo": {
+      "main": [
+        [
+          {
+            "node": "Obtener tablero por dominio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar datos correo": {
+      "main": [
+        [
+          {
+            "node": "resumen incidencia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear una incidencia": {
+      "main": [
+        [
+          {
+            "node": "Notificamos automatizacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "estructura salida": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "resumen incidencia",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "resumen incidencia",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Si el dominio esta en bbdd": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar correo pidiendo ID tablero",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "resumen incidencia": {
+      "main": [
+        [
+          {
+            "node": "Si el dominio esta en bbdd",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener tablero por dominio": {
+      "main": [
+        [
+          {
+            "node": "Normalizar datos correo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar domino en BBDD": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "resumen incidencia",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar correo pidiendo ID incidencia",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Crear una incidencia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar correo pidiendo ID tablero": {
+      "main": [
+        [
+          {
+            "node": "Insertar domino en BBDD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar correo pidiendo ID incidencia": {
+      "main": [
+        [
+          {
+            "node": "Normalizar ID incidencia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar ID incidencia": {
+      "main": [
+        [
+          {
+            "node": "Creamos el comentario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recibir correo": {
+      "main": [
+        [
+          {
+            "node": "correos restriccion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrado de correo": {
+      "main": [
+        [
+          {
+            "node": "Obtener dominio correo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "correos restriccion": {
+      "main": [
+        [
+          {
+            "node": "comprobar correo destinatario y remitente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "comprobar correo destinatario y remitente": {
+      "main": [
+        [
+          {
+            "node": "Filtrado de correo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "180af9fb-a68a-4682-bbba-314985eb8c4f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9d2e4f5e83105562581e5f21f9ce66b9d86cbb2db24c567aed3091d70ab08f35"
+  },
+  "id": "V01oYTJoRXKA0HT00QSsC",
+  "tags": [
+    {
+      "updatedAt": "2026-01-31T17:54:37.059Z",
+      "createdAt": "2026-01-31T17:54:37.059Z",
+      "id": "Plf2OIHaKgbzautQ",
+      "name": "gemini"
+    },
+    {
+      "updatedAt": "2026-01-31T17:54:42.892Z",
+      "createdAt": "2026-01-31T17:54:42.892Z",
+      "id": "cJQzhUxeA4U7bzAq",
+      "name": "mail"
+    },
+    {
+      "updatedAt": "2026-01-31T17:54:40.385Z",
+      "createdAt": "2026-01-31T17:54:40.385Z",
+      "id": "ux7WmB4n8mFJAPTV",
+      "name": "jira"
+    }
+  ]
+}
